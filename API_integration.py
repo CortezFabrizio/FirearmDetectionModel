@@ -1,8 +1,15 @@
+import json
+import os 
+from io import BytesIO
+from sql_model import Session , Predictions
+import boto3
+
 from flask import Flask, request
 import tensorflow as tf
 from PIL import Image
-import json
-import os 
+
+
+s3_client = boto3.client('s3')
 
 app = Flask(__name__)
 
@@ -26,10 +33,31 @@ def classify_image():
 
     prediction_probability  = (1- model.predict(image_dims)[0][0])*100
 
-    boolean_presence = True if prediction_probability >= 50 else False
+    bool_presence = True if prediction_probability >= 50 else False
 
-    return json.dumps({'firearm_presence':boolean_presence ,"percentage_value": prediction_probability})
+
+    with Session() as session:
+        new_prediction =  Predictions(boolean_presence=bool_presence,percentage_probability=prediction_probability)
+        session.add(new_prediction)
+        session.commit()
+        new_prediction_key = new_prediction.key
+
+
+
+    image_buffer = BytesIO()
+    image.save(image_buffer,format='JPEG')
+    s3_client.put_object(
+        Bucket='ml-images-project',
+        Body=image_buffer.getvalue(),
+        Key=f'{str(new_prediction_key)}.jpg'
+    )
+
+
+
+    return json.dumps({'firearm_presence':bool_presence ,"percentage_value": prediction_probability})
+
 
 
 if __name__ == '__main__':
     app.run()
+
