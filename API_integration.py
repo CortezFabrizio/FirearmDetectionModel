@@ -1,8 +1,9 @@
 import json
 import os 
 from io import BytesIO
-from sql_model import Session , Predictions
 import boto3
+
+from sql_model import insert_prediction_db
 
 from flask import Flask, request
 import tensorflow as tf
@@ -36,12 +37,7 @@ def classify_image():
     bool_presence = True if prediction_probability >= 50 else False
 
 
-    with Session() as session:
-        new_prediction =  Predictions(boolean_presence=bool_presence,percentage_probability=prediction_probability)
-        session.add(new_prediction)
-        session.commit()
-        new_prediction_key = new_prediction.key
-
+    returned_key = insert_prediction_db(bool_presence,prediction_probability)
 
 
     image_buffer = BytesIO()
@@ -49,9 +45,8 @@ def classify_image():
     s3_client.put_object(
         Bucket='ml-images-project',
         Body=image_buffer.getvalue(),
-        Key=f'{str(new_prediction_key)}.jpg'
+        Key=f'{str(returned_key)}.jpg'
     )
-
 
 
     return json.dumps({'firearm_presence':bool_presence ,"percentage_value": prediction_probability})

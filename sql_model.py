@@ -24,6 +24,14 @@ class Predictions(Base):
     percentage_probability : Mapped[float] = mapped_column(Float(decimal_return_scale=2))
 
 
+def insert_prediction_db(bool_presence , prediction_probability):
+    with Session() as session:
+        new_prediction =  Predictions(boolean_presence=bool_presence,percentage_probability=prediction_probability)
+        session.add(new_prediction)
+        session.commit()
+        return new_prediction.key
+
+
 
 if __name__ == '__main__':
     Base.metadata.create_all(engine)
